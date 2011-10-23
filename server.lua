@@ -11,7 +11,9 @@ function log(s)
 end
 
 sock = listen(0, 9001)
-log('Listening, sock='..sock)
 
 newsock = accept(sock)
 print('accepted! sock=' .. newsock)
+size, req = sockread(newsock, 1024)
+print('Request: '..req)
+sockwrite(newsock, '200 OK\n')

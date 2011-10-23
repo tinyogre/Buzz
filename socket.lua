@@ -23,8 +23,8 @@ ffi.cdef [[
 	int bind(int socket, const sockaddr_in *address, socklen_t address_len);
 	int	listen(int socket, int backlog);
 	int accept(int socket, struct sockaddr *restrict address, socklen_t *address_len);
-
-
+	size_t read(int fildes, void *buf, size_t nbyte);
+	size_t write(int fildes, const void *buf, size_t nbyte);
 	char *strerror(int errnum);
 	int errno;
 ]]
@@ -43,12 +43,8 @@ function htons(num)
 end
 
 -- Sure, could just wrap perror, but this is more flexible
--- Also it seems like it's not really guaranteed to work, luajit could
--- make all sorts of system calls behind the scenes, in theory, messing up errno
--- by the time we use it here.
--- In practice though it does seem to work!
 function perror(msg)
-  log(msg .. ': ' .. ffi.string(ffi.C.strerror(ffi.C.errno)))
+  log(msg .. ': ' .. ffi.string(ffi.C.strerror(ffi.errno)))
 end
 
 function listen(addr, port)
@@ -77,4 +73,14 @@ end
 function accept(sock)
   newsock = ffi.C.accept(sock, nil, nil)
   return newsock
+end
+
+function sockread(sock, len)
+  buffer = ffi.new("char[?]", len)
+  size = ffi.C.read(sock, buffer, len)
+  return size, ffi.string(buffer)
+end
+
+function sockwrite(sock, str)
+  ffi.C.write(sock, str, #str)
 end
