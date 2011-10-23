@@ -1,18 +1,23 @@
 #!/Users/ogre/src/luajit-2.0/src/luajit
-
 module(..., package.seeall)
 
-local ffi = require('ffi')
 local socket = require('socket')
 require('slice')
 
-ffi.cdef[[
-	int printf(const char *, ...);
-]]
-
 function log(s)
-  ffi.C.printf('%s\n', s)
+  print(s)
 end
+
+--
+-- Add a get handler
+--
+-- Examples:
+-- Simple URL
+-- server.get('/', main_handler)
+-- 
+-- A handler that takes an argument
+-- server.get('/list/(.*)', list_handler)
+--
 
 getreqs = {}
 function get(pattern, func)
@@ -21,12 +26,12 @@ function get(pattern, func)
   getreqs[pattern] = func
 end
 
---args = {string.find('/abc/', '^/(.*)/', 0)}
---if args then
---  print(args[3])
---end
+function trim(s) 
+  return s:match'^%s*(.*%S)' or '' 
+end
 
-function response(resp)
+function response(request, resp)
+  socket.write(request.socket, resp)
 end
 
 function run()
@@ -42,11 +47,16 @@ function run()
 	size, req = socket.read(newsock, 1024)
 	if size > 0 then	  
 	  if string.find(req, "GET ") then
-		uri = string.sub(req, 5, nil)
+		uri = trim(string.sub(req, 5, nil))
 		for k,v in pairs(getreqs) do
 		  args = {string.find(uri, k)}
-		  if args then
-			v(req, table_slice(args, 3))
+		  if #args > 0 then
+			request = {
+			  method="GET",
+			  uri=uri,
+			  socket=newsock
+			}
+			v(request, table_slice(args, 3))
 			break
 		  end
 		end
