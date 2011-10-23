@@ -3,10 +3,7 @@ module(..., package.seeall)
 
 local Socket = require('socket')
 require('slice')
-
-function log(s)
-  print(s)
-end
+require('log')
 
 getreqs = {}
 
@@ -34,6 +31,20 @@ function response(request, resp)
   request.socket:write(resp)
 end
 
+function read_request(newsock)
+  req = {}
+  while true do
+	line = newsock:readline(10000)
+	if line then
+	  if #line == 0 then
+		return req
+	  else
+		table.insert(req, line)
+	  end
+	end
+  end
+end
+
 function run()
   listensock = Socket()
   listensock:listen(0, 9001)
@@ -41,17 +52,19 @@ function run()
   while true do
 	newsock = listensock:accept()
 	if newsock.fd < 0 then
-	  Socket.perror('accept')
+	  perror('accept')
 	  break
 	end
 
-	line = newsock:readline(10000)
-	if line then
+	httpreq = read_request(newsock)
+	if httpreq and httpreq[1] then
+	  line = httpreq[1]
 	  -- What method?
 	  if string.find(line, "GET ") then
 
 		-- Find the actual URI requested
-		uri = trim(string.sub(line, 5, nil))
+		uri = string.gsub(trim(string.sub(line, 5, nil)), ' .*', '')
+		print('uri:'..uri)
 		for k,v in pairs(getreqs) do
 		  args = {string.find(uri, k)}
 		  if #args > 0 then
@@ -67,6 +80,7 @@ function run()
 		end
 	  end
 	end
+	print('Closing connection')
 	newsock:close()
   end
 end

@@ -16,7 +16,7 @@ end
 buzz.get('^/testarg/(.*)/?$', testarg)
 
 -- Create a handler for two arguments, define the handler inline
-buzz.get('^/test2args/(.*)/(.*)/$', 
+buzz.get('^/test2args/([^/]*)/([^/]*)/?$', 
 		 function(request, args)
 		   print('test2args (arg1=\''..args[1]..'\', arg2=\''..args[2]..'\')')
 		   buzz.response(request, '<html><h1>arg1=\''..args[1]..'\', arg2=\''..args[2]..'\'</h1></html>\n')

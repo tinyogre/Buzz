@@ -1,4 +1,5 @@
 local M = {}; M.__index = M
+require('log')
 
 local function construct()
   local self = setmetatable({
@@ -36,8 +37,6 @@ ffi.cdef [[
 	size_t read(int fildes, void *buf, size_t nbyte);
 	size_t write(int fildes, const void *buf, size_t nbyte);
 	int close(int fd);
-	char *strerror(int errnum);
-	int errno;
 ]]
 
 PF_INET = 2
@@ -51,11 +50,6 @@ sockaddr_in = ffi.metatype('sockaddr_in', mt)
 local bit = require('bit')
 local function htons(num)
   return bit.bor(bit.lshift(bit.band(num, 0xff), 8), bit.rshift(bit.band(num, 0xff00), 8))
-end
-
--- Sure, could just wrap perror, but this is more flexible
-function M.perror(msg)
-  print(msg .. ': ' .. ffi.string(ffi.C.strerror(ffi.errno())))
 end
 
 function M:listen(addr, port)
