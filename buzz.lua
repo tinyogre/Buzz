@@ -35,11 +35,11 @@ function response(request, resp)
 end
 
 function run()
-  sock = Socket()
-  sock:listen(0, 9001)
+  listensock = Socket()
+  listensock:listen(0, 9001)
 
   while true do
-	newsock = sock:accept()
+	newsock = listensock:accept()
 	if newsock.fd < 0 then
 	  Socket.perror('accept')
 	  break
