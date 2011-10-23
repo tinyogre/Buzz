@@ -64,7 +64,7 @@ function run()
 
 		-- Find the actual URI requested
 		uri = string.gsub(trim(string.sub(line, 5, nil)), ' .*', '')
-		print('uri:'..uri)
+		log('uri:'..uri)
 		for k,v in pairs(getreqs) do
 		  args = {string.find(uri, k)}
 		  if #args > 0 then
@@ -80,7 +80,7 @@ function run()
 		end
 	  end
 	end
-	print('Closing connection')
+	log('Closing connection')
 	newsock:close()
   end
 end
