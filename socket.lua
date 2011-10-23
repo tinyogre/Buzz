@@ -1,3 +1,5 @@
+module(..., package.seeall)
+
 local ffi = require('ffi')
 
 -- This file is ultimately a losing battle, every OS is going to implement this stuff slightly differently
@@ -25,6 +27,7 @@ ffi.cdef [[
 	int accept(int socket, struct sockaddr *restrict address, socklen_t *address_len);
 	size_t read(int fildes, void *buf, size_t nbyte);
 	size_t write(int fildes, const void *buf, size_t nbyte);
+	int close(int fd);
 	char *strerror(int errnum);
 	int errno;
 ]]
@@ -75,12 +78,16 @@ function accept(sock)
   return newsock
 end
 
-function sockread(sock, len)
+function read(sock, len)
   buffer = ffi.new("char[?]", len)
   size = ffi.C.read(sock, buffer, len)
   return size, ffi.string(buffer)
 end
 
-function sockwrite(sock, str)
+function write(sock, str)
   ffi.C.write(sock, str, #str)
+end
+
+function close(sock)
+  ffi.C.close(sock)
 end
