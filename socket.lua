@@ -93,6 +93,41 @@ function M:read(len)
   return size, ffi.string(buffer)
 end
 
+function M:readline(len)
+  -- This seems really really dumb (inefficient), FIXME later (build it into the C module when there is one)
+  -- Or at least do buffered reads and smartly build the line up
+  local cbuf = ffi.new("char[1]")
+  local line = ''
+  local state = 0
+  local done = false
+  while not done do
+	local size = ffi.C.read(self.fd, cbuf, 1)
+	if size < 0 then
+	  return nil
+	elseif size == 1 then
+	  local c = ffi.string(cbuf, 1)
+	  if state == 0 then
+		if c == '\r' then
+		  state = 1
+		elseif c == '\n' then
+		  -- Something's behaving badly sending just a \n line ending, but useful for testing with netcat,
+		  -- and probably wise in general
+		  done=true
+		else
+		  line = line..c
+		end
+	  elseif state == 1 then
+		if c == '\n' then
+		  done=true
+		else
+		  state = 0
+		end
+	  end
+	end
+  end
+  return line
+end
+
 function M:write(str)
   ffi.C.write(self.fd, str, #str)
 end

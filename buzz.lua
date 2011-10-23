@@ -45,13 +45,13 @@ function run()
 	  break
 	end
 
-	size, req = newsock:read(1024)
-	if size > 0 then	  
+	line = newsock:readline(10000)
+	if line then
 	  -- What method?
-	  if string.find(req, "GET ") then
+	  if string.find(line, "GET ") then
 
 		-- Find the actual URI requested
-		uri = trim(string.sub(req, 5, nil))
+		uri = trim(string.sub(line, 5, nil))
 		for k,v in pairs(getreqs) do
 		  args = {string.find(uri, k)}
 		  if #args > 0 then
