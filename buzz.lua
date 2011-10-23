@@ -8,18 +8,18 @@ function log(s)
   print(s)
 end
 
+getreqs = {}
+
 --
 -- Add a get handler
 --
 -- Examples:
 -- Simple URL
--- server.get('/', main_handler)
+-- buzz.get('/', main_handler)
 -- 
 -- A handler that takes an argument
--- server.get('/list/(.*)', list_handler)
+-- buzz.get('/list/(.*)', list_handler)
 --
-
-getreqs = {}
 function get(pattern, func)
   di = debug.getinfo(func, 'S')
   log('adding get: '..pattern..'=>'..di.short_src..':'..di.linedefined)
@@ -46,11 +46,15 @@ function run()
 
 	size, req = socket.read(newsock, 1024)
 	if size > 0 then	  
+	  -- What method?
 	  if string.find(req, "GET ") then
+
+		-- Find the actual URI requested
 		uri = trim(string.sub(req, 5, nil))
 		for k,v in pairs(getreqs) do
 		  args = {string.find(uri, k)}
 		  if #args > 0 then
+			-- Found a matching handler, build a request object and call it
 			request = {
 			  method="GET",
 			  uri=uri,
