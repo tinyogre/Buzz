@@ -1,4 +1,12 @@
-module(..., package.seeall)
+local M = {}; M.__index = M
+
+local function construct()
+  local self = setmetatable({
+							  fd = -1
+							}, M)
+  return self
+end
+setmetatable(M, {__call = construct})
 
 local ffi = require('ffi')
 
@@ -41,53 +49,56 @@ local mt = {}
 sockaddr_in = ffi.metatype('sockaddr_in', mt)
 
 local bit = require('bit')
-function htons(num)
+local function htons(num)
   return bit.bor(bit.lshift(bit.band(num, 0xff), 8), bit.rshift(bit.band(num, 0xff00), 8))
 end
 
 -- Sure, could just wrap perror, but this is more flexible
-function perror(msg)
-  log(msg .. ': ' .. ffi.string(ffi.C.strerror(ffi.errno)))
+function M.perror(msg)
+  print(msg .. ': ' .. ffi.string(ffi.C.strerror(ffi.errno())))
 end
 
-function listen(addr, port)
-  sock = ffi.C.socket(PF_INET, SOCK_STREAM, 0)
-  if sock < 0 then
+function M:listen(addr, port)
+  self.fd = ffi.C.socket(PF_INET, SOCK_STREAM, 0)
+  if self.fd < 0 then
 	perror('socket')
 	return -1
   end
 
   local addr = sockaddr_in(16, PF_INET, htons(port), addr, '\0\0\0\0\0\0\0\0')
-  res = ffi.C.bind(sock, addr, 16)
+  res = ffi.C.bind(self.fd, addr, 16)
   if res ~= 0 then
 	perror('bind')
 	return -1
   end
 
-  res = ffi.C.listen(sock, 16)
+  res = ffi.C.listen(self.fd, 16)
   if res ~= 0 then
 	perror('listen')
 	return -1
   end
 
-  return sock
+  return true
 end
 
-function accept(sock)
-  newsock = ffi.C.accept(sock, nil, nil)
+function M:accept()
+  newsock = construct()
+  newsock.fd = ffi.C.accept(self.fd, nil, nil)
   return newsock
 end
 
-function read(sock, len)
+function M:read(len)
   buffer = ffi.new("char[?]", len)
-  size = ffi.C.read(sock, buffer, len)
+  size = ffi.C.read(self.fd, buffer, len)
   return size, ffi.string(buffer)
 end
 
-function write(sock, str)
-  ffi.C.write(sock, str, #str)
+function M:write(str)
+  ffi.C.write(self.fd, str, #str)
 end
 
-function close(sock)
-  ffi.C.close(sock)
+function M:close()
+  ffi.C.close(self.fd)
 end
+
+return M

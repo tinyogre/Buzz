@@ -1,7 +1,7 @@
 #!/Users/ogre/src/luajit-2.0/src/luajit
 module(..., package.seeall)
 
-local socket = require('socket')
+local Socket = require('socket')
 require('slice')
 
 function log(s)
@@ -31,20 +31,21 @@ function trim(s)
 end
 
 function response(request, resp)
-  socket.write(request.socket, resp)
+  request.socket:write(resp)
 end
 
 function run()
-  sock = socket.listen(0, 9001)
+  sock = Socket()
+  sock:listen(0, 9001)
 
   while true do
-	newsock = socket.accept(sock)
-	if sock < 0 then
-	  socket.perror('accept')
+	newsock = sock:accept()
+	if newsock.fd < 0 then
+	  Socket.perror('accept')
 	  break
 	end
 
-	size, req = socket.read(newsock, 1024)
+	size, req = newsock:read(1024)
 	if size > 0 then	  
 	  -- What method?
 	  if string.find(req, "GET ") then
@@ -66,6 +67,6 @@ function run()
 		end
 	  end
 	end
-	socket.close(newsock)
+	newsock:close()
   end
 end
