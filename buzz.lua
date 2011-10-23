@@ -4,6 +4,7 @@ module(..., package.seeall)
 local Socket = require('socket')
 require('slice')
 require('log')
+require('date')
 
 getreqs = {}
 
@@ -27,7 +28,32 @@ function trim(s)
   return s:match'^%s*(.*%S)' or '' 
 end
 
+function add_headers(request)
+  if not request.headers then request.headers = {} end
+
+  local d = date(true)
+  local base = {
+	['Content-Type'] = 'text/html; charset=utf-8',
+	['Date'] = d:toutc():fmt('%a, %d %b %Y %H:%M:%S GMT'),
+	['Server'] = 'Buzz'
+  }
+  for k,v in pairs(base) do request.headers[k] = v end
+end
+
+function error(request, code, resp)
+  add_headers(request)
+
+end
+  
 function response(request, resp)
+  add_headers(request)
+
+  request.socket:write('HTTP/1.1 200 OK\r\n') -- Call error() for anything other than 200
+  for k,v in pairs(request.headers) do
+	request.socket:write(k..': '..v..'\r\n')
+  end
+  
+  request.socket:write('\r\n')
   request.socket:write(resp)
 end
 

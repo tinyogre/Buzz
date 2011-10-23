@@ -1,5 +1,6 @@
 
 local ffi = require('ffi')
+require('date')
 
 ffi.cdef [[
 	char *strerror(int errnum);
