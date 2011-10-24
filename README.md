@@ -15,11 +15,15 @@ About
 -----
 
 A mini lua web app framework.  Lua is portugese for moon.  Buzz Aldrin
-was the second man on the moon.  This is the second lua web server I
-know of (see Xavante for the first).
+was the second man on the moon.  This is the second lua web server.
+(Alright, you got me, there are several more besides just Xavante, I
+just like the name Buzz.  Plus Google's not using it any more.)
 
 At this point, I'm just messing around for my own education and
-enjoyment.  Maybe it'll turn into something serious, but likely not.
+amusement.  Maybe it'll turn into something serious, but likely not.
+As of this writing, you should check out the Kepler project at
+http://www.keplerproject.org/ for more information on "real" (or at
+least more mature) lua web app frameworks and other useful stuff.
 
 Requirements
 ------------
