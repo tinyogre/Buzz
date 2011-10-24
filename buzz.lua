@@ -40,19 +40,32 @@ function add_headers(request)
   for k,v in pairs(base) do request.headers[k] = v end
 end
 
+errors = {
+  [400] = 'Bad Request',
+  [404] = 'Not Found',
+  [500] = 'Internal Server Error'
+}
+
+function write_headers(request)
+  for k,v in pairs(request.headers) do
+	request.socket:write(k..': '..v..'\r\n')
+  end
+end
+
 function error(request, code, resp)
   add_headers(request)
-
+  if not errors[code] then code = 500 end
+  request.socket:write('HTTP/1.1 '..code..' '..errors[code]..'\r\n')
+  write_headers(request)
+  request.socket:write('\r\n')
 end
   
 function response(request, resp)
   add_headers(request)
 
   request.socket:write('HTTP/1.1 200 OK\r\n') -- Call error() for anything other than 200
-  for k,v in pairs(request.headers) do
-	request.socket:write(k..': '..v..'\r\n')
-  end
-  
+  write_headers(request)
+
   request.socket:write('\r\n')
   request.socket:write(resp)
 end
@@ -71,6 +84,62 @@ function read_request(newsock)
   end
 end
 
+function get_headers(request, httpreq, proto)
+  request.headers = {}
+  for i=2, #httpreq do
+	_,_, key, value = string.find(httpreq[i], '([^:]*): (.*)')
+	print(key,value)
+	request.headers[key] = value
+  end
+  -- HTTP 1.1 clients must provide Host
+  if not request.headers['Host'] then
+	return false
+  end
+  return true
+end
+
+function handle_request(httpreq)
+  line = httpreq[1]
+  -- What method?
+  request = {}
+  if string.find(line, "GET ") then
+	-- Find the actual URI requested
+	reqtext = string.sub(line, 5, nil)
+	request.uri = string.gsub(reqtext, ' .*', '')
+	request.proto = string.gsub(reqtext, '.* ', '')
+	request.method = "GET"
+	request.socket = newsock
+
+	if request.proto and #request.proto > 0 then
+	  if string.sub(request.proto, 1, 5) ~= 'HTTP/' then
+		error(request, 400, '')
+		return false
+	  end
+	  if not get_headers(request, httpreq, request.proto) then
+		error(request, 400, '')
+		return false
+	  end
+	end
+
+	log('uri:'..request.uri)
+
+	local found = false
+	for k,v in pairs(getreqs) do
+	  args = {string.find(request.uri, k)}
+	  if #args > 0 then
+		-- Found a matching handler, build a request object and call it
+		v(request, table_slice(args, 3))
+		found = true
+		break
+	  end
+	end
+	if not found then
+	  error(request, 404, '')
+	end
+  end
+  return true
+end
+
 function run()
   listensock = Socket()
   listensock:listen(0, 9001)
@@ -84,27 +153,8 @@ function run()
 
 	httpreq = read_request(newsock)
 	if httpreq and httpreq[1] then
-	  line = httpreq[1]
-	  -- What method?
-	  if string.find(line, "GET ") then
-
-		-- Find the actual URI requested
-		uri = string.gsub(trim(string.sub(line, 5, nil)), ' .*', '')
-		log('uri:'..uri)
-		for k,v in pairs(getreqs) do
-		  args = {string.find(uri, k)}
-		  if #args > 0 then
-			-- Found a matching handler, build a request object and call it
-			request = {
-			  method="GET",
-			  uri=uri,
-			  socket=newsock
-			}
-			v(request, table_slice(args, 3))
-			break
-		  end
-		end
-	  end
+	  print(#httpreq)
+	  handle_request(httpreq)
 	end
 	log('Closing connection')
 	newsock:close()
