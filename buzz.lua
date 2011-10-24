@@ -2,6 +2,7 @@
 module(..., package.seeall)
 
 local Socket = require('socket')
+local Request = require('request')
 require('slice')
 require('log')
 require('date')
@@ -35,7 +36,8 @@ function add_headers(request)
   local base = {
 	['Content-Type'] = 'text/html; charset=utf-8',
 	['Date'] = d:toutc():fmt('%a, %d %b %Y %H:%M:%S GMT'),
-	['Server'] = 'Buzz'
+	['Server'] = 'Buzz',
+	['Connection'] = 'close'
   }
   for k,v in pairs(base) do request.headers[k] = v end
 end
@@ -71,54 +73,57 @@ function response(request, resp)
 end
 
 function read_request(newsock)
-  req = {}
+  local request = Request()
+  request.socket = newsock
   while true do
-	line = newsock:readline(10000)
+	local line = newsock:readline(10000)
 	if line then
 	  if #line == 0 then
-		return req
+		return request
 	  else
-		table.insert(req, line)
+		if not request.method then
+		  _,_,request.method,request.uri,request.proto = string.find(line, '^([A-Z]*) ([^ ]*) (HTTP/1.%d)$')
+		  if request.method then
+			request.request_line = line
+			request.socket:write('HTTP/1.1 100 Continue\r\n\r\n')
+			table.insert(request, line)
+		  else
+			-- HTTP/1.0 maybe?
+			_,_,request.method,request.uri = string.find(line, '^([A-Z]*) ([^ ]*)$')
+			if not request.method then
+			  -- Nope, just bad
+			  log('Bad request')
+			  error(request, 400, '')
+			  return nil
+			else
+			  request.proto = 'HTTP/1.0'
+			end
+		  end
+		else
+		  -- Got request, reading cli_headers
+		  local _,_, header, value = string.find(line, '([^:]*): (.*)')
+		  request.cli_headers[header] = value
+		end
 	  end
 	end
   end
 end
 
-function get_headers(request, httpreq, proto)
-  request.headers = {}
-  for i=2, #httpreq do
-	_,_, key, value = string.find(httpreq[i], '([^:]*): (.*)')
-	print(key,value)
-	request.headers[key] = value
-  end
+function check_cli_headers(request)
   -- HTTP 1.1 clients must provide Host
-  if not request.headers['Host'] then
+  if request.proto ~= 'HTTP/1.0' and not request.cli_headers['Host'] then
 	return false
   end
   return true
 end
 
-function handle_request(httpreq)
-  line = httpreq[1]
+function handle_request(request)
   -- What method?
-  request = {}
-  if string.find(line, "GET ") then
-	-- Find the actual URI requested
-	reqtext = string.sub(line, 5, nil)
-	request.uri = string.gsub(reqtext, ' .*', '')
-	request.proto = string.gsub(reqtext, '.* ', '')
-	request.method = "GET"
-	request.socket = newsock
-
-	if request.proto and #request.proto > 0 then
-	  if string.sub(request.proto, 1, 5) ~= 'HTTP/' then
-		error(request, 400, '')
-		return false
-	  end
-	  if not get_headers(request, httpreq, request.proto) then
-		error(request, 400, '')
-		return false
-	  end
+  if request.method == "GET" then
+	if not check_cli_headers(request) then
+	  log('check_cli_headers failed')
+	  error(request, 400, '')
+	  return false
 	end
 
 	log('uri:'..request.uri)
@@ -151,10 +156,9 @@ function run()
 	  break
 	end
 
-	httpreq = read_request(newsock)
-	if httpreq and httpreq[1] then
-	  print(#httpreq)
-	  handle_request(httpreq)
+	request = read_request(newsock)
+	if request then
+	  handle_request(request)
 	end
 	log('Closing connection')
 	newsock:close()
