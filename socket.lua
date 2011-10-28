@@ -66,7 +66,7 @@ function M:listen(addr, port)
 	return -1
   end
 
-  res = ffi.C.listen(self.fd, 16)
+  res = ffi.C.listen(self.fd, 100)
   if res ~= 0 then
 	perror('listen')
 	return -1

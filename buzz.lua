@@ -85,7 +85,9 @@ function read_request(newsock)
 		  _,_,request.method,request.uri,request.proto = string.find(line, '^([A-Z]*) ([^ ]*) (HTTP/1.%d)$')
 		  if request.method then
 			request.request_line = line
-			request.socket:write('HTTP/1.1 100 Continue\r\n\r\n')
+			if request.proto and request.proto ~= 'HTTP/1.0' then
+			  request.socket:write('HTTP/1.1 100 Continue\r\n\r\n')
+			end
 			table.insert(request, line)
 		  else
 			-- HTTP/1.0 maybe?
