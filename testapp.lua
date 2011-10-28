@@ -22,4 +22,22 @@ buzz.get('^/test2args/([^/]*)/([^/]*)/?$',
 		   buzz.response(request, '<html><h1>arg1=\''..args[1]..'\', arg2=\''..args[2]..'\'</h1></html>\n')
 		 end)
 
+function static_file(request, args)
+  print("Static: ".. args[1])
+  -- Probably not a sufficient security check.  Don't allow any path
+  -- that contains a ./, to at least avoid, say,
+  -- '../../../../etc/passwd' type things.
+  -- TODO: find a library written by someone smart to do this
+  -- TODO2: Complain to someone about chroot requiring root privileges!
+  -- TODO3: luajit has problems parsing '\./' as a pattern, but [.]/ works.  lua 5.1 likes either just fine
+  if string.find(args[1], '[.]/') then
+	buzz.error(request, 404, 'Invalid path')
+	return
+  end
+
+  local file = io.open('static/'..args[1])
+  buzz.response(request, file:read('*a'))
+end
+buzz.get('^/static/(.*)$', static_file)
+
 buzz.run()
