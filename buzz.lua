@@ -147,22 +147,61 @@ function handle_request(request)
   return true
 end
 
+local conns = {}
+
+function add_conn(newsock)
+  conns[#conns + 1] = newsock
+end
+
+function del_conn(sock)
+  for i=1,#conns do
+	if conns[i] == sock then
+	  trace('removed socket with fd='..sock.fd)
+	  table.remove(conns, i)
+	  return
+	end
+  end
+end
+trace = print
+
+function do_read(sock)
+  trace('do_read')
+  request = read_request(sock)
+  if request then
+	handle_request(request)
+  end
+  log('Closing connection')
+  sock:close()
+  del_conn(sock)
+end
+
 function run()
   listensock = Socket()
-  listensock:listen(0, 9001)
+  if not listensock:listen(0, 9001) then
+	log('Failed to open listen socket, exiting')
+	return
+  end
+  
+  conns[1] = listensock
 
   while true do
-	newsock = listensock:accept()
-	if newsock.fd < 0 then
-	  perror('accept')
-	  break
+	trace('polling '..#conns..' sockets')
+	local ready = Socket.poll(conns, 1000)
+	trace('poll returned')
+	for s=1,#ready do
+	  trace('socket with fd='..ready[s].fd..' ready')
+	  if ready[s] == listensock then
+		trace('Calling accept')
+		newsock = listensock:accept()
+		if newsock.fd < 0 then
+		  perror('accept')
+		  break
+		else
+		  add_conn(newsock)
+		end
+	  else
+		do_read(ready[s])
+	  end
 	end
-
-	request = read_request(newsock)
-	if request then
-	  handle_request(request)
-	end
-	log('Closing connection')
-	newsock:close()
   end
 end

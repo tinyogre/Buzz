@@ -14,8 +14,10 @@ local ffi = require('ffi')
 -- This file is ultimately a losing battle, every OS is going to implement this stuff slightly differently
 -- But it'll do to get things started (on OS X)
 -- Later, this should just be a C module itself with a configure script or WHATEVER
+-- Something that generated this block from system headers could work too.  I do like not having any actual C.
 ffi.cdef [[
 	typedef size_t socklen_t;
+	typedef unsigned int nfds_t;
 	typedef struct { 
 	  uint8_t sa_len;
 	  unsigned char sa_family;
@@ -30,6 +32,12 @@ ffi.cdef [[
 	  char		sin_zero[8];
 	} sockaddr_in;
 
+	typedef struct {
+	  int fd;
+	  short events;
+	  short revents;
+	} pollfd;
+
 	int socket(int domain, int type, int protocol);
 	int bind(int socket, const sockaddr_in *address, socklen_t address_len);
 	int	listen(int socket, int backlog);
@@ -37,15 +45,29 @@ ffi.cdef [[
 	size_t read(int fildes, void *buf, size_t nbyte);
 	size_t write(int fildes, const void *buf, size_t nbyte);
 	int close(int fd);
+
+	int poll(pollfd *fds, nfds_t nfds, int timeout);
 ]]
 
 PF_INET = 2
 SOCK_STREAM = 1
 
+POLLIN=0x0001
+POLLPRI=0x0002
+POLLOUT=0x0004
+POLLRDNORM=0x0040
+POLLWRNORM=POLLOUT
+POLLRDBAND=0x0080
+POLLWRBAND=0x0100
+POLLERR=0x0008
+POLLHUP=0x0010
+POLLNVAL=0x0020
+
 local sockaddr_in
 local mt = {}
 
 sockaddr_in = ffi.metatype('sockaddr_in', mt)
+pollfd = ffi.metatype('pollfd', mt)
 
 local bit = require('bit')
 local function htons(num)
@@ -56,24 +78,51 @@ function M:listen(addr, port)
   self.fd = ffi.C.socket(PF_INET, SOCK_STREAM, 0)
   if self.fd < 0 then
 	perror('socket')
-	return -1
+	return false
   end
 
   local addr = sockaddr_in(16, PF_INET, htons(port), addr, '\0\0\0\0\0\0\0\0')
   res = ffi.C.bind(self.fd, addr, 16)
   if res ~= 0 then
 	perror('bind')
-	return -1
+	return false
   end
 
   res = ffi.C.listen(self.fd, 100)
   if res ~= 0 then
 	perror('listen')
-	return -1
+	return false
   end
 
+  
   return true
 end
+
+-- take an array of sockets (this lua structure variety)
+-- return an array of sockets with pending events
+function M.poll(socks, timeout)
+  local fds = ffi.new('pollfd[?]', #socks)
+  for i=0,#socks - 1 do
+	fds[i].fd = socks[i+1].fd
+	fds[i].events = bit.bor(bit.bor(POLLIN, POLLERR), POLLHUP)
+	fds[i].revents = 0 -- Not necessary, ffi.new zeros memory
+  end
+  res = ffi.C.poll(fds, #socks, timeout)
+  local retsocks = {}
+  for i=0,#socks - 1 do
+	if bit.band(fds[i].revents, POLLIN) ~= 0 then
+	  retsocks[#retsocks + 1] = socks[i + 1]
+	end
+  end
+  return retsocks
+end
+
+--function M:poll(timeout)
+--  local pfd = pollfd(self.fd, POLLIN, 0)
+
+--  res = ffi.C.poll(pfd, 1, timeout)
+--  return res > 0
+--end
 
 function M:accept()
   newsock = construct()
