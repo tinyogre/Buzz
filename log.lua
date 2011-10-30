@@ -15,3 +15,5 @@ function log(s)
   print(s)
 end
 
+--trace = log
+trace = function() end

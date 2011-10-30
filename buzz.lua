@@ -162,7 +162,6 @@ function del_conn(sock)
 	end
   end
 end
-trace = print
 
 function do_read(sock)
   trace('do_read')

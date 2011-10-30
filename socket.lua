@@ -45,7 +45,7 @@ ffi.cdef [[
 	size_t read(int fildes, void *buf, size_t nbyte);
 	size_t write(int fildes, const void *buf, size_t nbyte);
 	int close(int fd);
-
+	int fcntl(int fd, int cmd, ...);
 	int poll(pollfd *fds, nfds_t nfds, int timeout);
 ]]
 
@@ -63,15 +63,31 @@ POLLERR=0x0008
 POLLHUP=0x0010
 POLLNVAL=0x0020
 
+O_NONBLOCK=0x0004
+
+F_GETFL=3
+F_SETFL=4
+
 local sockaddr_in
 local mt = {}
 
 sockaddr_in = ffi.metatype('sockaddr_in', mt)
 pollfd = ffi.metatype('pollfd', mt)
 
+--
+-- Internal functions
+--
 local bit = require('bit')
 local function htons(num)
   return bit.bor(bit.lshift(bit.band(num, 0xff), 8), bit.rshift(bit.band(num, 0xff00), 8))
+end
+
+function nonblock(fd)
+  flags = ffi.C.fcntl(fd, F_GETFL, ffi.new("int", 0))
+  if flags == -1 then
+	flags = 0
+  end
+  ffi.C.fcntl(fd, F_SETFL, ffi.new("int", bit.bor(flags, O_NONBLOCK)))
 end
 
 function M:listen(addr, port)
@@ -93,8 +109,8 @@ function M:listen(addr, port)
 	perror('listen')
 	return false
   end
+  nonblock(self.fd)
 
-  
   return true
 end
 
@@ -127,6 +143,7 @@ end
 function M:accept()
   newsock = construct()
   newsock.fd = ffi.C.accept(self.fd, nil, nil)
+  nonblock(newsock.fd)
   return newsock
 end
 
