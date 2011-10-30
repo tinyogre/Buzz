@@ -54,7 +54,13 @@ function write_headers(request)
   end
 end
 
+function send_error(request, code, resp)
+  error(request, code, resp)
+end
+
 function error(request, code, resp)
+  log('ERR '..code..' '..resp)
+
   add_headers(request)
   if not errors[code] then code = 500 end
   request.socket:write('HTTP/1.1 '..code..' '..errors[code]..'\r\n')
@@ -72,43 +78,26 @@ function response(request, resp)
   request.socket:write(resp)
 end
 
-function read_request(newsock)
-  local request = Request()
-  request.socket = newsock
-  while true do
-	local line = newsock:readline(10000)
-	if line then
-	  if #line == 0 then
-		return request
-	  else
-		if not request.method then
-		  _,_,request.method,request.uri,request.proto = string.find(line, '^([A-Z]*) ([^ ]*) (HTTP/1.%d)$')
-		  if request.method then
-			request.request_line = line
-			if request.proto and request.proto ~= 'HTTP/1.0' then
-			  request.socket:write('HTTP/1.1 100 Continue\r\n\r\n')
-			end
-			table.insert(request, line)
-		  else
-			-- HTTP/1.0 maybe?
-			_,_,request.method,request.uri = string.find(line, '^([A-Z]*) ([^ ]*)$')
-			if not request.method then
-			  -- Nope, just bad
-			  log('Bad request')
-			  error(request, 400, '')
-			  return nil
-			else
-			  request.proto = 'HTTP/1.0'
-			end
-		  end
-		else
-		  -- Got request, reading cli_headers
-		  local _,_, header, value = string.find(line, '([^:]*): (.*)')
-		  request.cli_headers[header] = value
-		end
-	  end
+function parse_request(newsock)
+  local lines = newsock.request.lines
+  if #lines == 0 then
+	return false
+  end
+  if not newsock.request:parse_request_line(newsock.request.lines[1]) then
+	return false
+  end
+
+  for l=2,#lines do
+	local _,_, header, value = string.find(lines[l], '([^:]*): (.*)')
+	if header then
+	  newsock.request.cli_headers[header] = value
+	else
+	  log('error parsing header '..lines[l])
+	  return false
 	end
   end
+  newsock.request.valid = true
+  return true
 end
 
 function check_cli_headers(request)
@@ -165,10 +154,31 @@ end
 
 function do_read(sock)
   trace('do_read')
-  request = read_request(sock)
-  if request then
-	handle_request(request)
+  if not sock.request then
+	sock.request = Request()
+	sock.request.socket = sock
   end
+  repeat
+	size, buf = sock:read(1024)
+	if size > 0 then
+	  sock.request:add_data(buf)
+	end
+  until size ~= 1024
+  if size < 0 then
+	perror('read')
+	sock:close()
+	del_conn(sock)
+	return
+  end
+
+  if not sock.request.headers_complete then
+	return
+  end
+
+  if parse_request(sock) then
+	handle_request(sock.request)
+  end
+
   log('Closing connection')
   sock:close()
   del_conn(sock)
