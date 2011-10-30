@@ -47,6 +47,7 @@ ffi.cdef [[
 	int close(int fd);
 	int fcntl(int fd, int cmd, ...);
 	int poll(pollfd *fds, nfds_t nfds, int timeout);
+	int setsockopt(int socket, int level, int option_name, const void *option_value, socklen_t option_len);
 ]]
 
 PF_INET = 2
@@ -67,6 +68,9 @@ O_NONBLOCK=0x0004
 
 F_GETFL=3
 F_SETFL=4
+
+SO_REUSEADDR=0x0004
+SOL_SOCKET=0xffff
 
 local sockaddr_in
 local mt = {}
@@ -110,7 +114,8 @@ function M:listen(addr, port)
 	return false
   end
   nonblock(self.fd)
-
+  local val = ffi.new("int[1]", 1)
+  ffi.C.setsockopt(self.fd, SOL_SOCKET, SO_REUSEADDR, val, ffi.sizeof("int"))  
   return true
 end
 
