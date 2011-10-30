@@ -15,6 +15,8 @@ local ffi = require('ffi')
 -- But it'll do to get things started (on OS X)
 -- Later, this should just be a C module itself with a configure script or WHATEVER
 -- Something that generated this block from system headers could work too.  I do like not having any actual C.
+-- Tested on Linux and it seems to work just fine with only a couple of constants changed for SO_REUSEADDR.  
+-- Maybe I'll just keep it unless someone complains.
 ffi.cdef [[
 	typedef size_t socklen_t;
 	typedef unsigned int nfds_t;
@@ -69,8 +71,13 @@ O_NONBLOCK=0x0004
 F_GETFL=3
 F_SETFL=4
 
-SO_REUSEADDR=0x0004
-SOL_SOCKET=0xffff
+if ffi.os == 'Linux' then
+  SO_REUSEADDR=2
+  SOL_SOCKET=1
+elseif ffi.os == 'OSX' then
+  SO_REUSEADDR=4
+  SOL_SOCKET=0xffff
+end
 
 local sockaddr_in
 local mt = {}
@@ -101,6 +108,11 @@ function M:listen(addr, port)
 	return false
   end
 
+  local val = ffi.new("int[1]", 1)
+  if ffi.C.setsockopt(self.fd, SOL_SOCKET, SO_REUSEADDR, val, ffi.sizeof("int")) ~= 0 then
+	perror('setsockopt '..ffi.errno()..' ')
+  end
+
   local addr = sockaddr_in(16, PF_INET, htons(port), addr, '\0\0\0\0\0\0\0\0')
   res = ffi.C.bind(self.fd, addr, 16)
   if res ~= 0 then
@@ -114,8 +126,6 @@ function M:listen(addr, port)
 	return false
   end
   nonblock(self.fd)
-  local val = ffi.new("int[1]", 1)
-  ffi.C.setsockopt(self.fd, SOL_SOCKET, SO_REUSEADDR, val, ffi.sizeof("int"))  
   return true
 end
 
