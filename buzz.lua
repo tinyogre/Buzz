@@ -39,7 +39,11 @@ function add_headers(request)
 	['Server'] = 'Buzz',
 	['Connection'] = 'close'
   }
-  for k,v in pairs(base) do request.headers[k] = v end
+  for k,v in pairs(base) do 
+	if not request.headers[k] then
+	  request.headers[k] = v 
+	end
+  end
 end
 
 errors = {
@@ -86,7 +90,6 @@ function parse_request(newsock)
   if not newsock.request:parse_request_line(newsock.request.lines[1]) then
 	return false
   end
-
   for l=2,#lines do
 	local _,_, header, value = string.find(lines[l], '([^:]*): (.*)')
 	if header then
@@ -119,6 +122,7 @@ function handle_request(request)
 
 	log('uri:'..request.uri)
 
+	if not request.headers then request.headers = {} end
 	local found = false
 	for k,v in pairs(getreqs) do
 	  args = {string.find(request.uri, k)}
@@ -184,9 +188,10 @@ function do_read(sock)
   del_conn(sock)
 end
 
-function run()
+function run(port)
+  if not port then port = 9001 end
   listensock = Socket()
-  if not listensock:listen(0, 9001) then
+  if not listensock:listen(0, port) then
 	log('Failed to open listen socket, exiting')
 	return
   end
