@@ -20,11 +20,11 @@ was the second man on the moon.  This is the second lua web server.
 just like the name Buzz.  Plus Google's not using it any more.)
 
 Goals
- * Learn me some Lua
- * Usefulness - I am toying with writing a blog app using this and making it my real blog
- * Simplicity - Writing simple web apps should require only simple code
- * Speed - Should scale to reasonable loads
- * Modular and agnostic - if you want to replace some piece, the framework shouldn't make it hard
+* Learn me some Lua
+* Usefulness - I am toying with writing a blog app using this and making it my real blog
+* Simplicity - Writing simple web apps should require only simple code
+* Speed - Should scale to reasonable loads
+* Modular and agnostic - if you want to replace some piece, the framework shouldn't make it hard
 
 At this point, I'm just messing around for my own education and
 amusement.  As of this writing, you should check out the Kepler
