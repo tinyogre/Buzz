@@ -20,6 +20,7 @@ was the second man on the moon.  This is the second lua web server.
 just like the name Buzz.  Plus Google's not using it any more.)
 
 Goals
+-----
 * Learn me some Lua
 * Usefulness - I am toying with writing a blog app using this and making it my real blog
 * Simplicity - Writing simple web apps should require only simple code
