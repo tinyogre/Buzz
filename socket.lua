@@ -77,6 +77,8 @@ if ffi.os == 'Linux' then
 elseif ffi.os == 'OSX' then
   SO_REUSEADDR=4
   SOL_SOCKET=0xffff
+else
+  print("Hey!  I don't know what platform you're on, go add your platform values to socket.lua!")
 end
 
 local sockaddr_in
