@@ -1,2 +1,48 @@
 * HTTP
 *** "HTTP Made Really Easy" http://www.jmarshall.com/easy/http/#http1.1c4
+
+* Template Languages
+
+| Feature                                  | ltp    | cosmo  | luahaml | orbit  | leslie     | Tir    |
+|------------------------------------------+--------+--------+---------+--------+------------+--------|
+| Embed lua in template                    | X      |        | X       | X      |            | X      |
+| Write "plain" HTML                       | X      |        | [[5]]       |        | X          | X      |
+| Produce HTML from Lua                    |        | X      |         | X      |            |        |
+| Compile template to lua                  | X      |        |         |        |            |        |
+| Embed template in lua source             |        | X      | X       | X      | X          | X      |
+| Based on familiar syntax                 |        |        | HAML    |        | Django     | [[6]]      |
+|------------------------------------------+--------+--------+---------+--------+------------+--------|
+| Modular (Can use just the template lang) | X      | X      | X       | [[4]]      | X          | [[7]]      |
+| Standalone command-line                  | X      |        |         |        |            |        |
+|------------------------------------------+--------+--------+---------+--------+------------+--------|
+| Comprehensive Examples/samples           |        | X      | X       | XXX    |            |        |
+| Comprehensive Tutorial                   |        |        |         | X      |            |        |
+| Example code calls the reader Joe        |        |        | X       |        |            |        |
+|------------------------------------------+--------+--------+---------+--------+------------+--------|
+| Apparent stability level                 | Stable | Alpha  | Beta    | Stable | Alpha      | Alpha  |
+| Active Development                       | 2009 [[1]] | 2010   | 2011 [[2]]  | 2011 [[3]] | 2009       | 2011   |
+| Version Control                          | ?      | github | github  | github | svn (goog) | github |
+| License                                  | Apache | MIT    | MIT     | MIT    | BSD        | BSD    |
+
+* 1 
+*** Parent Wispers project has development in 2010
+* 2 
+*** Single commit from non-primary developer, mostly 2010
+* 3
+*** No releases since 2010, but branches have activity in 2011 and parent Kepler project is active
+* 4
+*** Orbit is a complete MVC framework, orbit.htmlify is part of the main module.  It could probably be extracted without much difficulty, but not as simply as copying a file or directory
+*** An app written for orbit could also easily use any of these other template libraries
+* 5
+*** HAML does let you embed actual HTML, but discourages it, and most HAML files will have little or no "normal" HTML
+* 6
+*** Looks a lot like Django, but isn't really.
+* 7
+*** Tir is a complete framework, but the view.lua module looks like it can be used by itself
+
+* Websites
+*** ltp: http://www.savarese.com/software/ltp/
+*** Cosmo: http://cosmo.luaforge.net/
+*** Orbit: http://keplerproject.github.com/orbit/index.html
+*** HAML: https://github.com/norman/lua-haml
+*** Leslie: http://code.google.com/p/leslie/
