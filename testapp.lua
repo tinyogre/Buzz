@@ -40,4 +40,9 @@ function static_file(request, args)
 end
 buzz.get('^/static/(.*)$', static_file)
 
+function post(request, args)
+  print('post data: '..request.data)
+end
+buzz.post('^/post/(.*)$', post)
+
 buzz.run()

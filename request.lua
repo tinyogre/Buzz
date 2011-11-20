@@ -40,16 +40,51 @@ function M:parse_request_line(line)
   end
 end
 
+function M:parse_request()
+  local lines = self.lines
+  if #lines == 0 then
+	return false
+  end
+  if not self:parse_request_line(self.lines[1]) then
+	return false
+  end
+  for l=2,#lines do
+	local _,_, header, value = string.find(lines[l], '([^:]*): (.*)')
+	if header then
+	  self.cli_headers[header:lower()] = value
+	else
+	  log('error parsing header '..lines[l])
+	  return false
+	end
+  end
+  self.valid = true
+  return true
+end
+
+function M:check_data_complete()
+  if not self.cli_headers['content-length'] then
+    return true
+  end
+  if #self.data >= tonumber(self.cli_headers['content-length']) then
+    self.data_complete = true
+  end
+  return self.data_complete
+end
+
 function M:add_data(buf)
   self.data = self.data .. buf
-  if not self.headers_complete then
+  if self.headers_complete then
+    self:check_data_complete()
+  elseif not self.headers_complete then
 	repeat
 	  local pos = string.find(self.data, '\r\n')
 	  if pos then
 		if pos == 1 then
 		  self.headers_complete = true
+          self:parse_request()
 		  self.data = self.data:sub(pos + 2)
-		  return
+          self:check_data_complete()
+          return;
 		elseif not self.headers_complete then
 		  self.lines[#self.lines + 1] = self.data:sub(1, pos - 1)
 		  self.data = self.data:sub(pos + 2)

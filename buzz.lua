@@ -8,6 +8,7 @@ require('log')
 require('date')
 
 getreqs = {}
+postreqs = {}
 
 --
 -- Add a get handler
@@ -23,6 +24,12 @@ function get(pattern, func)
   di = debug.getinfo(func, 'S')
   log('adding get: '..pattern..'=>'..di.short_src..':'..di.linedefined)
   getreqs[pattern] = func
+end
+
+function post(pattern, func)
+  di = debug.getinfo(func, 'S')
+  log('adding post: '..pattern..'=>'..di.short_src..':'..di.linedefined)
+  postreqs[pattern] = func
 end
 
 function trim(s) 
@@ -41,7 +48,7 @@ function add_headers(request)
   }
   for k,v in pairs(base) do 
 	if not request.headers[k] then
-	  request.headers[k] = v 
+	  request.headers[k:lower()] = v 
 	end
   end
 end
@@ -82,60 +89,47 @@ function response(request, resp)
   request.socket:write(resp)
 end
 
-function parse_request(newsock)
-  local lines = newsock.request.lines
-  if #lines == 0 then
+function check_cli_headers(request)
+  -- HTTP 1.1 clients must provide Host
+  if request.proto ~= 'HTTP/1.0' and not request.cli_headers['host'] then
 	return false
   end
-  if not newsock.request:parse_request_line(newsock.request.lines[1]) then
-	return false
-  end
-  for l=2,#lines do
-	local _,_, header, value = string.find(lines[l], '([^:]*): (.*)')
-	if header then
-	  newsock.request.cli_headers[header] = value
-	else
-	  log('error parsing header '..lines[l])
-	  return false
-	end
-  end
-  newsock.request.valid = true
   return true
 end
 
-function check_cli_headers(request)
-  -- HTTP 1.1 clients must provide Host
-  if request.proto ~= 'HTTP/1.0' and not request.cli_headers['Host'] then
-	return false
+function call_handler(request, reqtable)
+  for k,v in pairs(reqtable) do
+    local args = {string.find(request.uri, k)}
+    if #args > 0 then
+      -- Found a matching handler, build a request object and call it
+      v(request, table_slice(args, 3))
+      found = true
+      break
+    end
   end
-  return true
+  if not found then
+    error(request, 404, '')
+  end
 end
 
 function handle_request(request)
+  log('uri:'..request.uri)
+
+  -- Validate
+  if not check_cli_headers(request) then
+    log('check_cli_headers failed')
+    error(request, 400, '')
+    return false
+  end
+
+  local found = false
+  if not request.headers then request.headers = {} end
+
   -- What method?
   if request.method == "GET" then
-	if not check_cli_headers(request) then
-	  log('check_cli_headers failed')
-	  error(request, 400, '')
-	  return false
-	end
-
-	log('uri:'..request.uri)
-
-	if not request.headers then request.headers = {} end
-	local found = false
-	for k,v in pairs(getreqs) do
-	  args = {string.find(request.uri, k)}
-	  if #args > 0 then
-		-- Found a matching handler, build a request object and call it
-		v(request, table_slice(args, 3))
-		found = true
-		break
-	  end
-	end
-	if not found then
-	  error(request, 404, '')
-	end
+    call_handler(request, getreqs)
+  elseif request.method == "POST" then
+    call_handler(request, postreqs)
   end
   return true
 end
@@ -175,13 +169,10 @@ function do_read(sock)
 	return
   end
 
-  if not sock.request.headers_complete then
-	return
-  end
+  if not sock.request.headers_complete then	return end
+  if sock.request.method == "POST" and not sock.request.data_complete then return end
 
-  if parse_request(sock) then
-	handle_request(sock.request)
-  end
+  handle_request(sock.request)
 
   log('Closing connection')
   sock:close()
