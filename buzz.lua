@@ -188,7 +188,7 @@ function do_read(sock)
   del_conn(sock)
 end
 
-function run(port)
+function init(port)
   if not port then port = 9001 end
   listensock = Socket()
   if not listensock:listen(0, port) then
@@ -197,25 +197,33 @@ function run(port)
   end
   
   conns[1] = listensock
+end
+
+function poll(delay)
+  trace('polling '..#conns..' sockets')
+  local ready = Socket.poll(conns, delay)
+  trace('poll returned')
+  for s=1,#ready do
+    trace('socket with fd='..ready[s].fd..' ready')
+    if ready[s] == listensock then
+      trace('Calling accept')
+      newsock = listensock:accept()
+      if newsock.fd < 0 then
+        perror('accept')
+        break
+      else
+        add_conn(newsock)
+      end
+    else
+      do_read(ready[s])
+    end
+  end
+end
+
+function run(port)
+  init(port)
 
   while true do
-	trace('polling '..#conns..' sockets')
-	local ready = Socket.poll(conns, 1000)
-	trace('poll returned')
-	for s=1,#ready do
-	  trace('socket with fd='..ready[s].fd..' ready')
-	  if ready[s] == listensock then
-		trace('Calling accept')
-		newsock = listensock:accept()
-		if newsock.fd < 0 then
-		  perror('accept')
-		  break
-		else
-		  add_conn(newsock)
-		end
-	  else
-		do_read(ready[s])
-	  end
-	end
+    poll(1000)
   end
 end
